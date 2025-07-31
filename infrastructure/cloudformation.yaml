@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Tracker Stack - Gold and Shopee Price Monitoring'
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+
+Resources:
+  # DynamoDB Tables
+  PriceHistoryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${Environment}-price-history'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: product_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: product_id
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+
+  # Lambda Functions
+  TrackerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${Environment}-tracker-stack-local'
+      Runtime: python3.12
+      Handler: handler.tracker_stack_handler
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {'statusCode': 200}
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref PriceHistoryTable
+          ENVIRONMENT: !Ref Environment
+
+  # EventBridge Rules for Scheduling
+  GoldTrackerSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: 'rate(1 hour)'
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt TrackerFunction.Arn
+          Id: GoldTrackerTarget
+          Input: '{"tracker_type": "gold", "config": {"notification_threshold": 0.02}}'
+
+  ShopeeTrackerSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: 'rate(1 hour)'
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt TrackerFunction.Arn
+          Id: ShopeeTrackerTarget
+          Input: '{"tracker_type": "shopee", "product_id": "123456789", "config": {"shop_id": "987654321"}}'
