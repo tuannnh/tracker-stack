@@ -25,11 +25,32 @@ Resources:
         - AttributeName: timestamp
           KeyType: RANGE
 
+  ProductsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub '${Environment}-products'
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: product_id
+          AttributeType: S
+        - AttributeName: tracker_type
+          AttributeType: S
+      KeySchema:
+        - AttributeName: product_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: tracker-type-index
+          KeySchema:
+            - AttributeName: tracker_type
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
   # Lambda Functions
   TrackerFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: !Sub '${Environment}-tracker-stack-local'
+      FunctionName: !Sub '${Environment}-tracker-stack'
       Runtime: python3.12
       Handler: handler.tracker_stack_handler
       Code:
@@ -39,8 +60,56 @@ Resources:
       Role: !GetAtt LambdaExecutionRole.Arn
       Environment:
         Variables:
-          DYNAMODB_TABLE: !Ref PriceHistoryTable
+          PRICE_HISTORY_TABLE: !Ref PriceHistoryTable
+          PRODUCTS_TABLE: !Ref ProductsTable
           ENVIRONMENT: !Ref Environment
+
+  ProductManagementFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${Environment}-product-management'
+      Runtime: python3.12
+      Handler: handler.add_shopee_product_handler
+      Code:
+        ZipFile: |
+          def lambda_handler(event, context):
+              return {'statusCode': 200}
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Environment:
+        Variables:
+          PRICE_HISTORY_TABLE: !Ref PriceHistoryTable
+          PRODUCTS_TABLE: !Ref ProductsTable
+          ENVIRONMENT: !Ref Environment
+
+  # IAM Role for Lambda
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                Resource: 
+                  - !GetAtt PriceHistoryTable.Arn
+                  - !GetAtt ProductsTable.Arn
+                  - !Sub '${ProductsTable.Arn}/index/*'
 
   # EventBridge Rules for Scheduling
   GoldTrackerSchedule:
@@ -61,4 +130,4 @@ Resources:
       Targets:
         - Arn: !GetAtt TrackerFunction.Arn
           Id: ShopeeTrackerTarget
-          Input: '{"tracker_type": "shopee", "product_id": "123456789", "config": {"shop_id": "987654321"}}'
+          Input: '{"tracker_type": "shopee_bulk"}'

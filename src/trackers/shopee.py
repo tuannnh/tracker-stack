@@ -10,6 +10,7 @@ class ShopeeTracker(BaseTracker):
         self.shopee_product_id = product_id
         self.shop_id = config.get('shop_id')
         self.base_url = config.get('base_url', 'https://shopee.vn')
+        self.product_name = config.get('product_name', f'Shopee Product {product_id}')
 
     def fetch_current_price(self) -> float:
         """Fetch product price using Shopee API v4"""
@@ -55,7 +56,8 @@ class ShopeeTracker(BaseTracker):
 
         except Exception as e:
             # Fallback to web scraping if API fails
-            return self._scrape_price_from_page()
+            # return self._scrape_price_from_page()
+            return "No Data"
 
     def _scrape_price_from_page(self) -> float:
         """Fallback method: scrape price from product page"""
@@ -79,12 +81,13 @@ class ShopeeTracker(BaseTracker):
         raise Exception("Could not fetch Shopee price from any source")
 
     def get_product_name(self) -> str:
-        return f"Shopee Product {self.shopee_product_id}"
+        return self.product_name
 
     def get_metadata(self) -> dict:
         metadata = super().get_metadata()
         metadata.update({
             'shop_id': self.shop_id,
-            'shopee_product_id': self.shopee_product_id
+            'shopee_product_id': self.shopee_product_id,
+            'product_name': self.product_name
         })
         return metadata

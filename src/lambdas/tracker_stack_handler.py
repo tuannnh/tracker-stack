@@ -6,6 +6,7 @@ from typing import Dict, Any
 # Import all tracker classes
 from src.trackers.gold import GoldTracker
 from src.trackers.shopee import ShopeeTracker
+from src.trackers.shopee_manager import ShopeeProductsManager
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -26,6 +27,12 @@ def lambda_handler(event, context):
     """
     try:
         tracker_type = event.get('tracker_type')
+        
+        # Special handling for Shopee bulk tracking
+        if tracker_type == 'shopee_bulk':
+            return handle_shopee_bulk_tracking()
+        
+        # Handle individual product tracking
         product_id = event.get('product_id')
         config = event.get('config', {})
 
@@ -58,6 +65,26 @@ def lambda_handler(event, context):
         }
 
 
+def handle_shopee_bulk_tracking():
+    """Handle bulk tracking of all Shopee products from DynamoDB"""
+    try:
+        manager = ShopeeProductsManager()
+        results = manager.track_all_products()
+        
+        return {
+            'statusCode': 200,
+            'message': f'Tracked {len(results)} Shopee products',
+            'results': results
+        }
+    
+    except Exception as e:
+        logger.error(f"Error in Shopee bulk tracking: {str(e)}")
+        return {
+            'statusCode': 500,
+            'error': str(e)
+        }
+
+
 def handle_scheduled_event(event, context):
     """Handle EventBridge scheduled events"""
     # Get tracker configuration from environment or event
@@ -72,3 +99,31 @@ def handle_scheduled_event(event, context):
         'statusCode': 200,
         'results': results
     }
+
+
+def add_shopee_product_handler(event, context):
+    """Lambda handler for adding new Shopee products"""
+    try:
+        body = json.loads(event.get('body', '{}'))
+        manager = ShopeeProductsManager()
+        result = manager.add_product(body)
+        
+        return {
+            'statusCode': result['statusCode'],
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps(result)
+        }
+    
+    except Exception as e:
+        logger.error(f"Error adding Shopee product: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps({'error': str(e)})
+        }
