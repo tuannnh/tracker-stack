@@ -2,6 +2,7 @@ from typing import List, Dict, Any
 from .shopee import ShopeeTracker
 from ..clients.dynamodb import DynamoDBClient
 import logging
+from datetime import datetime
 
 logger = logging.getLogger()
 

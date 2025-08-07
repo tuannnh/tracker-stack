@@ -3,8 +3,8 @@ from datetime import datetime
 import logging
 import json
 from typing import Dict, Any, Optional
-from .clients.dynamodb_client import DynamoDBClient
-from .clients.ntfy_client import NtfyClient
+from ..clients.dynamodb import DynamoDBClient
+from ..clients.ntfy import NtfyClient
 
 logger = logging.getLogger()
 

@@ -1,7 +1,7 @@
 import requests
 import time
 import random
-from ..base_tracker import BaseTracker
+from .base import BaseTracker
 
 
 class ShopeeTracker(BaseTracker):
