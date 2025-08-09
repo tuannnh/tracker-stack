@@ -28,6 +28,34 @@ def parse_shopee_url(url):
 
     return itemid, shopid
 
+def fetch_data_normal(itemid: str, shopid: str) -> dict:
+    """
+    Fetch data from shopee.vn api with normal headers
+    """
+    url = f'https://shopee.vn/api/v4/item/get?itemid={itemid}&shopid={shopid}'
+    
+    try:
+        response = requests.get(url, timeout=10)
+        
+        if response.status_code == 200:
+            return {
+                'success': True,
+                'data': response.json(),
+                'full_response': response.text
+            }
+        else:
+            return {
+                'success': False,
+                'error': f'HTTP {response.status_code}: {response.text}',
+                'status_code': response.status_code
+            }
+            
+    except requests.RequestException as e:
+        return {
+            'success': False,
+            'error': f'Request failed: {str(e)}'
+        }
+        
 def fetch_data_with_enhanced_headers(itemid: str, shopid: str) -> dict:
     """
     Fetch data from shopee.vn api with enhanced headers to bypass 403
@@ -66,7 +94,7 @@ def fetch_data_with_enhanced_headers(itemid: str, shopid: str) -> dict:
         print(f'Params: {params}')
         print(f'Headers: {json.dumps(headers, indent=2)}')
         
-        response = requests.get(url, params=params, headers=headers, timeout=15)
+        response = requests.get(url, params=params)
         
         print(f'Response status code: {response.status_code}')
         print(f'Response headers: {dict(response.headers)}')
@@ -231,7 +259,9 @@ if __name__ == '__main__':
             print(f'Parsed - ItemID: {itemid}, ShopID: {shopid}')
             
             # Test enhanced approach
-            result = fetch_data_with_enhanced_headers(itemid, shopid)
+            # result = fetch_data_with_enhanced_headers(itemid, shopid)
+            result = fetch_data_normal(itemid, shopid)
+            
             
             if result['success']:
                 print("\n✓ SUCCESS!")
@@ -239,14 +269,6 @@ if __name__ == '__main__':
             else:
                 print(f"\n✗ Enhanced approach failed: {result['error']}")
                 
-                # Try multiple approaches
-                print("\nTrying alternative approaches...")
-                data = test_multiple_approaches(itemid, shopid)
-                
-                if not data:
-                    # Analyze protection and suggest alternatives
-                    analyze_shopee_protection()
-                    suggest_alternatives()
         else:
             print("Failed to parse URL")
             
