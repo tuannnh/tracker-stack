@@ -1,0 +1,83 @@
+name: Deploy Tracker Stack
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/lambda/**'
+      - 'infrastructure/**'
+      - 'requirements.txt'
+      - '.github/workflows/tracker-stack-buildspec.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      AWS_ENDPOINT_URL: ${{ secrets.AWS_ENDPOINT_URL }}
+      STACK_NAME: tracker-stack
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install awscli
+
+      - name: Create deployment directory
+        run: mkdir -p deployment
+
+      - name: Deploy CloudFormation stack
+        run: |
+          echo "Deploying CloudFormation stack: $STACK_NAME"
+          aws cloudformation deploy \
+            --stack-name $STACK_NAME \
+            --template-file infrastructure/tracker-stack.yaml \
+            --capabilities CAPABILITY_IAM \
+            --region ${{ secrets.AWS_REGION }} \
+            --s3-bucket tracker-stack-deployment \
+            --s3-prefix cloudformation/ \
+            --no-fail-on-empty-changeset
+
+            aws cloudformation deploy \
+            --stack-name tracker-stack \
+            --template-file infrastructure/tracker-stack.yaml \
+            --capabilities CAPABILITY_IAM \
+            --region us-east-1 \
+            --s3-bucket tracker-stack-deployment \
+            --s3-prefix cloudformation/ \
+            --no-fail-on-empty-changeset
+
+      - name: Update Lambda function code
+        run: |
+          # Update each function with its corresponding zip file
+          for function_name in $FUNCTIONS; do
+            function_base=$(basename $function_name)
+            if [ -f "deployment/${function_base}.zip" ]; then
+              echo "Updating function: $function_name with deployment/${function_base}.zip"
+              aws lambda update-function-code \
+                --function-name $function_name \
+                --zip-file fileb://deployment/${function_base}.zip \
+                --region ${{ secrets.AWS_REGION }}
+            else
+              echo "No matching zip file found for function: $function_name"
+            fi
+          done
+
+      - name: Clean up
+        run: |
+          echo "Deployment completed successfully!"
+          rm -rf deployment

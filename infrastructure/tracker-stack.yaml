@@ -1,0 +1,141 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Stack Tracker - Dispatcher + SQS + Worker for Shopee API + Gold Price HTML
+
+Parameters:
+  ProductsTableName:
+    Type: String
+    Default: tracker-stack-products
+  HistoryTableName:
+    Type: String
+    Default: tracker-stack-products-history
+  CrawlSchedule:
+    Type: String
+    Default: rate(1 hour)
+  LambdaRoleName:
+    Type: String
+    Description: IAM role for AWS Lambda
+    Default: role-svc-lambda
+  LambdaExecutionRoleArn:
+    Type: String
+    Default: !Sub "arn:aws:iam::${AWS::AccountId}:role/${LambdaRoleName}"
+
+Resources:
+  ## DynamoDB Tables
+  ProductsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref ProductsTableName
+      AttributeDefinitions:
+        - AttributeName: productId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: productId
+          KeyType: HASH
+      BillingMode: PAY_PER_REQUEST
+
+  ProductHistoryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref HistoryTableName
+      AttributeDefinitions:
+        - AttributeName: productId
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      KeySchema:
+        - AttributeName: productId
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+
+  ## SNS Topic for notifications
+  PriceChangeTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: tracker-stack-price-change
+
+  ## SQS Queue for crawl jobs
+  CrawlQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: tracker-stack-crawl-queue
+      VisibilityTimeout: 300
+
+  ## Dispatcher Lambda
+  DispatcherFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: tracker-stack-dispatcher
+      Runtime: python3.11
+      Handler: index.handler
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 60
+      Environment:
+        Variables:
+          PRODUCTS_TABLE: !Ref ProductsTableName
+          CRAWL_QUEUE_URL: !Ref CrawlQueue
+      Code:
+        ZipFile: |
+          import json
+          def lambda_handler(event, context):
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps('Default Lambda Function')
+              }
+
+  ## EventBridge Rule
+  HourlyRule:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: !Ref CrawlSchedule
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt DispatcherFunction.Arn
+          Id: DispatcherTarget
+
+  PermissionForEventsToInvokeDispatcher:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref DispatcherFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt HourlyRule.Arn
+
+  ## Worker Lambda
+  WorkerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: PriceTracker-Worker
+      Runtime: python3.11
+      Handler: index.handler
+      Role: !Ref LambdaExecutionRoleArn
+      Timeout: 300
+      Environment:
+        Variables:
+          PRODUCTS_TABLE: !Ref ProductsTableName
+          HISTORY_TABLE: !Ref HistoryTableName
+          PRICE_TOPIC_ARN: !Ref PriceChangeTopic
+      Code:
+        ZipFile: |
+          import json
+          def lambda_handler(event, context):
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps('Default Lambda Function')
+              }
+
+  ## SQS to Worker Lambda mapping
+  WorkerSQSEventSource:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !GetAtt CrawlQueue.Arn
+      FunctionName: !GetAtt WorkerFunction.Arn
+      BatchSize: 5
+      Enabled: True
+
+Outputs:
+  ProductsTable: { Value: !Ref ProductsTableName }
+  ProductHistoryTable: { Value: !Ref HistoryTableName }
+  CrawlQueueUrl: { Value: !Ref CrawlQueue }
+  PriceChangeTopicArn: { Value: !Ref PriceChangeTopic }
