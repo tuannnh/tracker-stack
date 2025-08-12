@@ -67,8 +67,8 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: tracker-stack-dispatcher
-      Runtime: python3.11
-      Handler: index.handler
+      Runtime: python3.12
+      Handler: tracker-stack-dispatcher.lambda_handler
       Role: !Ref LambdaExecutionRoleArn
       Timeout: 60
       Environment:
@@ -107,8 +107,8 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: tracker-stack-worker
-      Runtime: python3.11
-      Handler: index.handler
+      Runtime: python3.12
+      Handler: tracker-stack-worker.lambda_handler
       Role: !Ref LambdaExecutionRoleArn
       Timeout: 300
       Environment:
