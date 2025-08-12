@@ -48,7 +48,6 @@ jobs:
             --template-file infrastructure/tracker-stack.yaml \
             --capabilities CAPABILITY_IAM \
             --region ${{ secrets.AWS_REGION }} \
-            --s3-bucket tracker-stack-deployment \
             --no-fail-on-empty-changeset
 
 
