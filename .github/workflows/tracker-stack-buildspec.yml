@@ -49,35 +49,42 @@ jobs:
             --capabilities CAPABILITY_IAM \
             --region ${{ secrets.AWS_REGION }} \
             --s3-bucket tracker-stack-deployment \
-            --s3-prefix cloudformation/ \
             --no-fail-on-empty-changeset
 
-            aws cloudformation deploy \
-            --stack-name tracker-stack \
-            --template-file infrastructure/tracker-stack.yaml \
-            --capabilities CAPABILITY_IAM \
-            --region us-east-1 \
-            --s3-bucket tracker-stack-deployment \
-            --s3-prefix cloudformation/ \
-            --no-fail-on-empty-changeset
 
       - name: Update Lambda function code
+        working-directory: ./src/lambda
         run: |
-          # Update each function with its corresponding zip file
-          for function_name in $FUNCTIONS; do
-            function_base=$(basename $function_name)
-            if [ -f "deployment/${function_base}.zip" ]; then
-              echo "Updating function: $function_name with deployment/${function_base}.zip"
+          # Process each Python file in the lambda directory
+          for filepath in *;
+          do
+            
+            filename_with_ext=${filepath##*/}
+            filename_without_ext=${filename_with_ext%.*}
+
+            echo "Processing Lambda function: $filename_without_ext"
+
+            if [ -d "${filepath}" ]; then
+              echo "This is a directory: $filepath"
+              cd $filepath
+              pip install -r ../../../requirements.txt -t .
+              zip -r $filename_without_ext.zip *
+              echo "Updating Lambda function: $filename_without_ext"
               aws lambda update-function-code \
-                --function-name $function_name \
-                --zip-file fileb://deployment/${function_base}.zip \
-                --region ${{ secrets.AWS_REGION }}
+                --function-name $filename_without_ext \
+                --zip-file fileb://$filename_without_ext.zip
             else
-              echo "No matching zip file found for function: $function_name"
-            fi
-          done
+              echo "This is a file: $filepath"
+              pip install -r ../../../requirements.txt -t .
+              zip -r $filename_without_ext.zip *
+              ls -al
+              echo "Updating Lambda function: $filename_without_ext"
+              aws lambda update-function-code \
+                --function-name $filename_without_ext \
+                --zip-file fileb://$filename_without_ext.zip
+            fi;
+          done;
 
       - name: Clean up
         run: |
           echo "Deployment completed successfully!"
-          rm -rf deployment
