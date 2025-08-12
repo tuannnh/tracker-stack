@@ -18,9 +18,6 @@ Parameters:
   LambdaExecutionRoleArn:
     Type: String
     Default: !Sub "arn:aws:iam::${AWS::AccountId}:role/${LambdaRoleName}"
-  DependenciesLayerArn:
-    Type: String
-    Description: ARN of the Lambda layer containing dependencies
 
 Resources:
   ## DynamoDB Tables
