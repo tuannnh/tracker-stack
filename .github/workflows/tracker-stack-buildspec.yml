@@ -1,4 +1,4 @@
-name: Deploy Tracker Stack
+name: Deploy Tracker Stack to AWS (LOCAL)
 
 on:
   push:
@@ -66,6 +66,7 @@ jobs:
             if [ -d "${filepath}" ]; then
               echo "This is a directory: $filepath"
               cd $filepath
+              pwd
               pip install -r ../../../requirements.txt -t .
               zip -r $filename_without_ext.zip *
               echo "Updating Lambda function: $filename_without_ext"
@@ -74,7 +75,8 @@ jobs:
                 --zip-file fileb://$filename_without_ext.zip
             else
               echo "This is a file: $filepath"
-              pip install -r ../../../requirements.txt -t .
+              pwd
+              pip install -r ../../requirements.txt -t .
               zip -r $filename_without_ext.zip *
               ls -al
               echo "Updating Lambda function: $filename_without_ext"
