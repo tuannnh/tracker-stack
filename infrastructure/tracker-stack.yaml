@@ -116,7 +116,7 @@ Resources:
         Variables:
           PRODUCTS_TABLE: !Ref ProductsTableName
           HISTORY_TABLE: !Ref HistoryTableName
-          PRICE_TOPIC_ARN: !Ref PriceTopic
+          PRICE_TOPIC_ARN: !Ref PriceChangeTopic
       Timeout: 300
 
   ## SQS to Worker Lambda mapping
