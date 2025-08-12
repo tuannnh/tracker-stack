@@ -77,7 +77,7 @@ Resources:
               return {'statusCode': 200}
       Environment:
         Variables:
-          PRODUCTS_TABLE: !Ref ProductsTable
+          PRODUCTS_TABLE: !Ref ProductsTableName
           CRAWL_QUEUE_URL: !Ref CrawlQueue
       Timeout: 60
 
