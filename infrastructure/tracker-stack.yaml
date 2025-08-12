@@ -114,8 +114,8 @@ Resources:
               return {'statusCode': 200}
       Environment:
         Variables:
-          PRODUCTS_TABLE: !Ref ProductsTable
-          HISTORY_TABLE: !Ref HistoryTable
+          PRODUCTS_TABLE: !Ref ProductsTableName
+          HISTORY_TABLE: !Ref HistoryTableName
           PRICE_TOPIC_ARN: !Ref PriceTopic
       Timeout: 300
 
