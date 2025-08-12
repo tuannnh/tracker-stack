@@ -18,6 +18,9 @@ Parameters:
   LambdaExecutionRoleArn:
     Type: String
     Default: !Sub "arn:aws:iam::${AWS::AccountId}:role/${LambdaRoleName}"
+  DependenciesLayerArn:
+    Type: String
+    Description: ARN of the Lambda layer containing dependencies
 
 Resources:
   ## DynamoDB Tables
@@ -68,21 +71,18 @@ Resources:
     Properties:
       FunctionName: tracker-stack-dispatcher
       Runtime: python3.12
-      Handler: tracker-stack-dispatcher.lambda_handler
+      Handler: tracker-stack-dispatcher.handler
       Role: !Ref LambdaExecutionRoleArn
-      Timeout: 60
-      Environment:
-        Variables:
-          PRODUCTS_TABLE: !Ref ProductsTableName
-          CRAWL_QUEUE_URL: !Ref CrawlQueue
       Code:
         ZipFile: |
-          import json
-          def lambda_handler(event, context):
-              return {
-                  'statusCode': 200,
-                  'body': json.dumps('Default Lambda Function')
-              }
+          # Placeholder code - will be updated by deployment
+          def handler(event, context):
+              return {'statusCode': 200}
+      Environment:
+        Variables:
+          PRODUCTS_TABLE: !Ref ProductsTable
+          CRAWL_QUEUE_URL: !Ref CrawlQueue
+      Timeout: 60
 
   ## EventBridge Rule
   HourlyRule:
@@ -108,22 +108,19 @@ Resources:
     Properties:
       FunctionName: tracker-stack-worker
       Runtime: python3.12
-      Handler: tracker-stack-worker.lambda_handler
+      Handler: tracker-stack-worker.handler
       Role: !Ref LambdaExecutionRoleArn
-      Timeout: 300
-      Environment:
-        Variables:
-          PRODUCTS_TABLE: !Ref ProductsTableName
-          HISTORY_TABLE: !Ref HistoryTableName
-          PRICE_TOPIC_ARN: !Ref PriceChangeTopic
       Code:
         ZipFile: |
-          import json
-          def lambda_handler(event, context):
-              return {
-                  'statusCode': 200,
-                  'body': json.dumps('Default Lambda Function')
-              }
+          # Placeholder code - will be updated by deployment
+          def handler(event, context):
+              return {'statusCode': 200}
+      Environment:
+        Variables:
+          PRODUCTS_TABLE: !Ref ProductsTable
+          HISTORY_TABLE: !Ref HistoryTable
+          PRICE_TOPIC_ARN: !Ref PriceTopic
+      Timeout: 300
 
   ## SQS to Worker Lambda mapping
   WorkerSQSEventSource:
