@@ -106,7 +106,7 @@ Resources:
   WorkerFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: PriceTracker-Worker
+      FunctionName: tracker-stack-worker
       Runtime: python3.11
       Handler: index.handler
       Role: !Ref LambdaExecutionRoleArn
